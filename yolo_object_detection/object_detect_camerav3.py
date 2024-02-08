@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from picamera2 import Picamera2
 
 # Load YOLO
 net = cv2.dnn.readNet("yolov3-tiny.cfg", "yolov3-tiny.weights")
@@ -8,15 +9,18 @@ with open("coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 layer_names = net.getUnconnectedOutLayersNames()
 
-# Open video stream
-cap = cv2.VideoCapture(0)
+cv2.startWindowThread()
+picam2 = Picamera2()
+picam2.configure(picam2.create_preview_configuration(main={"format": 'XRGB8888', "size": (640, 480)}))
+picam2.start()
 
 while True:
-    ret, frame = cap.read()
-    height, width, channels = frame.shape
+    frame = picam2.capture_array("main")
+    frame_new = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+    height, width, channels = frame_new.shape
 
     # Detect objects
-    blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
+    blob = cv2.dnn.blobFromImage(frame_new, 0.00392, (416,416), (0, 0, 0), True, crop=False)
     net.setInput(blob)
     outs = net.forward(layer_names)
 
@@ -56,6 +60,3 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-# Release the video stream and close the window
-cap.release()
-cv2.destroyAllWindows()
